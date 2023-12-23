@@ -1,0 +1,3 @@
+pyodbc @ file:///Users/runner/miniforge3/conda-bld/pyodbc_1697223245761/work
+setuptools==68.2.2
+wheel==0.42.0
