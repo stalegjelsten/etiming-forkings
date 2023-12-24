@@ -4,44 +4,55 @@ import random
 import math
 import time
 import pyodbc
+import sqlalchemy as sa
 
-conn = pyodbc.connect(
-    r"Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\stale\dev\etiming-gaflinger\etime.mdb;"
+# path to the access .mdb database file. Should be an absolute path
+mdb_path = r"C:\Users\stale\dev\etiming-gaflinger\etime.mdb"
+connection_string = (
+    r"Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=" + mdb_path + r";"
 )
-# cursor = conn.cursor()
-# cursor.execute('select * from name')
 
-# for row in cursor.fetchall():
-#     print (row)
+# create SQLalchemy connection
+engine = sa.create_engine(
+    sa.engine.URL.create("access+pyodbc", query={"odbc_connect": connection_string})
+)
 
-classdf = pd.read_sql_query("select * from class", conn)
-namedf = pd.read_sql_query("select * from name", conn)
-coursedf = pd.read_sql_query("select * from cource", conn)
+# create pyodbc connection
+conn = pyodbc.connect(connection_string)
 
-# classdf = pd.read_excel("class.xlsx")
-# namedf = pd.read_excel("name.xlsx")
-# coursedf = pd.read_excel("cource.xlsx")
+# create pandas dataframes from relevant tables
+classdf = pd.read_sql_query("select * from class", engine)
+namedf = pd.read_sql_query("select * from name", engine)
+coursedf = pd.read_sql_query("select * from cource", engine)
+
+# a pd series which contains the number of forkings entered for each class
 finished = pd.Series([0 for i in range(len(classdf))]).rename("forkings")
 
 
 # %%
 def distributeCourses(currentClass, low_limit, high_limit):
-    names_in_class = namedf[namedf["class"] == currentClass]
+    names_in_class = namedf[namedf["class"] == str(currentClass)]
     n = len(names_in_class)
+
+    # create an array with uniform distribution of integers from lower limit
+    # to upper limit
     courses = [i for i in range(low_limit, high_limit + 1)] * math.ceil(
         n / (high_limit - low_limit + 1)
     )
-    random.shuffle(courses)  # shuffle the sequence x in place
+
+    # shuffle the elements of courses and slice it down to correct length
+    random.shuffle(courses)
     courses = courses[:n]
-    print(courses)
-    # x = pd.Series(x[:n])
+
+    # loop over all names and assign the random courses to the competitors
     idx = 0
     for index, row in namedf.iterrows():
-        if row["class"] == currentClass:
+        if row["class"] == str(currentClass):
             namedf.loc[index, "cource"] = courses[idx]
             print(idx, courses[idx])
             idx += 1
-    print(namedf[["name", "ename", "cource"]][namedf["class"] == currentClass])
+
+    print(namedf[["name", "ename", "cource"]][namedf["class"] == str(currentClass)])
     print(
         f"Successfully set random courses for {classdf['class'][classdf['code'] == str(currentClass)].item()}"
     )
@@ -56,22 +67,22 @@ def distributeCourses(currentClass, low_limit, high_limit):
 def chooseClass():
     number_participants = namedf["class"].value_counts()
     print(
-        classdf[["class", "code"]]
+        classdf[["code", "class"]]
         .merge(finished, left_index=True, right_index=True)
         .merge(
-            number_participants.rename("count").rename_axis("code"),
+            number_participants.rename("participants").rename_axis("code"),
             how="outer",
             on="code",
         )
     )
     chosen_class = int(
         input(
-            f"What class would you like to assign courses to? Enter a number from {0} to {len(classdf)-1}, or -1 to exit: "
+            f"Which class would you like to assign courses to? Enter a number from {0} to {len(classdf)-1}, OR write -1 to exit OR write -2 to write changes to the .mdb database file: "
         )
     )
-    if chooseClass == -1:
+    if chosen_class == -1:
         return
-    elif chooseClass == -2:
+    elif chosen_class == -2:
         writeToDatabase()
     else:
         chosen_class_code = classdf.iloc[chosen_class]["code"]
@@ -79,11 +90,13 @@ def chooseClass():
 
 
 def writeToDatabase():
+    # namedf.to_sql("name", engine, index=False, if_exists="replace")
     cursor = conn.cursor()
     for index, row in namedf.iterrows():
-        cursor.execute(
-            "update name set cource = ? where id like ?;", row.cource, row.id
-        )
+        cursor.execute(f"update name set cource = {row.cource} where id like {row.id};")
+        # cursor.execute(
+    #         "update name set cource = ? where id like ?;", row.cource, row.id
+    #     )
     conn.commit()
     cursor.close()
 
@@ -123,5 +136,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# %%

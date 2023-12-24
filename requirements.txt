@@ -1,3 +1,12 @@
-pyodbc @ file:///Users/runner/miniforge3/conda-bld/pyodbc_1697223245761/work
-setuptools==68.2.2
-wheel==0.42.0
+greenlet==3.0.3
+numpy==1.26.2
+pandas==2.1.4
+pyodbc==5.0.1
+python-dateutil==2.8.2
+pytz==2023.3.post1
+pywin32==306
+six==1.16.0
+SQLAlchemy==2.0.23
+sqlalchemy-access==2.0.2
+typing_extensions==4.9.0
+tzdata==2023.3
