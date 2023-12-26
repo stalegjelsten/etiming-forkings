@@ -1,3 +1,5 @@
 env
-etime.mdb
-etime.ldb
+**.mdb
+**.ldb
+**.xlsx
+.prettierignore

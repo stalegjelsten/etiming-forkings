@@ -26,7 +26,7 @@ namedf = pd.read_sql_query("select * from name", engine)
 coursedf = pd.read_sql_query("select * from cource", engine)
 
 # a pd series which contains the number of forkings entered for each class
-finished = pd.Series([0 for i in range(len(classdf))]).rename("forkings")
+no_of_forkings = pd.Series([0 for i in range(len(classdf))]).rename("forkings")
 
 
 # %%
@@ -54,9 +54,10 @@ def distributeCourses(currentClass, low_limit, high_limit):
 
     print(namedf[["name", "ename", "cource"]][namedf["class"] == str(currentClass)])
     print(
-        f"Successfully set random courses for {classdf['class'][classdf['code'] == str(currentClass)].item()}"
+        f"Successfully set random courses for "
+        f"{classdf['class'][classdf['code'] == str(currentClass)].item()}"
     )
-    finished[classdf[classdf["code"] == str(currentClass)].index] = (
+    no_of_forkings[classdf[classdf["code"] == str(currentClass)].index] = (
         high_limit - low_limit + 1
     )
     time.sleep(1)
@@ -64,20 +65,35 @@ def distributeCourses(currentClass, low_limit, high_limit):
     return chooseClass()
 
 
+def listCourses():
+    # lists all courses in the database with
+    courses = coursedf[["code", "name", "length"]]
+    print("------------------------")
+    print("Courses in the eTiming database")
+    print(courses.to_string(index=False))
+    print("------------------------")
+
+
 def chooseClass():
     number_participants = namedf["class"].value_counts()
+
+    # prints the classes together with the number of forkings assigned
+    # and the number of participants in the class
     print(
         classdf[["code", "class"]]
-        .merge(finished, left_index=True, right_index=True)
+        .merge(no_of_forkings, left_index=True, right_index=True)
         .merge(
             number_participants.rename("participants").rename_axis("code"),
             how="outer",
             on="code",
         )
     )
+
+    print("Which class would you like to assign courses to?")
     chosen_class = int(
         input(
-            f"Which class would you like to assign courses to? Enter a number from {0} to {len(classdf)-1}, OR write -1 to exit OR write -2 to write changes to the .mdb database file: "
+            f"Enter a number from {0} to {len(classdf)-1}, "
+            "OR write -1 to exit OR write -2 to write changes to the .mdb database file: "
         )
     )
     if chosen_class == -1:
@@ -92,11 +108,10 @@ def chooseClass():
 def writeToDatabase():
     # namedf.to_sql("name", engine, index=False, if_exists="replace")
     cursor = conn.cursor()
-    for index, row in namedf.iterrows():
+
+    for _, row in namedf.iterrows():
         cursor.execute(f"update name set cource = {row.cource} where id like {row.id};")
-        # cursor.execute(
-    #         "update name set cource = ? where id like ?;", row.cource, row.id
-    #     )
+
     conn.commit()
     cursor.close()
 
@@ -106,23 +121,26 @@ def printRunners(currentClass):
     names_in_class = namedf[namedf["class"] == str(currentClass)]
     print(names_in_class[["name", "ename"]])
     print(
-        f"{len(names_in_class)} runners in {classdf['class'][classdf['code'] == str(currentClass)].item()}."
+        f"{len(names_in_class)} runners in "
+        f"{classdf['class'][classdf['code'] == str(currentClass)].item()}."
     )
     print("l: List all courses.")
     print("n: Abort and choose another class.")
     print("y: Input high and low limits for course numbers.")
-    choice = input(f"What would you like to do? ")
+    choice = input("What would you like to do? ")
     if (choice == "l") or choice == "L":
         listCourses()
     elif choice == "y" or "Y":
         low_limit = int(
             input(
-                f"Enter the lowest course number for class {classdf['class'][classdf['code'] == str(currentClass)].item()}: "
+                f"Enter the lowest course number for class "
+                f"{classdf['class'][classdf['code'] == str(currentClass)].item()}: "
             )
         )
         high_limit = int(
             input(
-                f"Enter the highest course number for class {classdf['class'][classdf['code'] == str(currentClass)].item()}: "
+                "Enter the highest course number for class "
+                f"{classdf['class'][classdf['code'] == str(currentClass)].item()}: "
             )
         )
         distributeCourses(currentClass, low_limit, high_limit)
